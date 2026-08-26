@@ -8,6 +8,7 @@ from GalTransl.COpenAI import COpenAITokenPool, init_sakura_endpoint_queue
 from GalTransl.yapsy.PluginManager import PluginManager
 from GalTransl.ConfigHelper import CProjectConfig, CProxyPool
 from GalTransl.Frontend.LLMTranslate import doLLMTranslate
+from GalTransl.ProblemHandler import ProblemHandler
 from GalTransl.i18n import get_text,GT_LANG
 from GalTransl.CSplitter import (
     DictionaryCountSplitter,
@@ -298,8 +299,17 @@ async def run_galtransl(cfg: CProjectConfig, translator: str, stop_event=None):
         cfg.proxyPool = proxyPool
         cfg.input_splitter = input_splitter
 
+        problem_handler = ProblemHandler(cfg.getCachePath())
+        apply_res = problem_handler.apply_manifest()
+        if apply_res:
+           LOGGER.info("问题清单.json应用成功。")
+        else:
+           LOGGER.warning("问题清单.json应用失败。")
+
         _raise_if_stop_requested(stop_event)
         await doLLMTranslate(cfg)
+
+        problem_handler.save_manifest()
 
         for plugin in file_plugins + text_plugins:
             _raise_if_stop_requested(stop_event)
